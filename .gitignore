@@ -1,4 +1,4 @@
-.vim
 nowify
 nowify.db
-/result
+node_modules
+.idea

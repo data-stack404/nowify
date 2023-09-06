@@ -1,0 +1,13 @@
+{
+  "name": "nowify",
+  "module": "nowify.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/minimist": "^1.2.2",
+    "bun-types": "latest",
+    "minimist": "^1.2.8"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,12 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
-
-import { parse as parseArgs } from "https://deno.land/std@0.191.0/flags/mod.ts";
-
-import { DB } from "https://deno.land/x/sqlite@v3.7.2/mod.ts";
-
 import { readKeypress } from "https://deno.land/x/keypress@0.0.11/mod.ts";
 
 import { serve } from "https://deno.land/std@0.191.0/http/server.ts";
+
+import { Database } from "bun:sqlite";
+import Minimist from 'minimist';
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -15,7 +13,7 @@ const {
   help,
   routines: csv,
   db: sqliteFile,
-} = parseArgs(Deno.args, {
+} = Minimist(Bun.argv, {
   default: {
     help: false,
     routines: `~/.config/nowify/routines.csv`,
@@ -30,21 +28,21 @@ const command = args.join(` `).trim();
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const db = new DB(sqliteFile);
+const db = new Database(sqliteFile);
 
-db.execute(`
+db.query(`
   create table if not exists log
   ( created_at timestamp not null default current_timestamp
   , event text not null check (event <> '')
   , action text not null check (action in ('start','skip','wait','done'))
   )
-`);
-db.execute(`
+`).run();
+db.query(`
   create index if not exists log_idx on log
   ( created_at
   , action
   )
-`);
+`).run();
 
 // https://stackoverflow.com/a/8497474
 const csvLine = (x: string) => {
