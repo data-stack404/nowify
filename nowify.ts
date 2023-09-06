@@ -244,12 +244,10 @@ switch (help ? `help` : command) {
   // }
 
   case "server": {
-    console.log('in server branch');
     Bun.serve({
       port: "8000",
       fetch(req : Request): Response {
         const url = new URL(req.url);
-        console.log(url);
         const route = url.pathname.slice(1);
         if (route === "event") {
           return Response.json(start(), { status: 200 });
