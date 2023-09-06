@@ -1,7 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
 // import { readKeypress } from "https://deno.land/x/keypress@0.0.11/mod.ts";
-//
-// import { serve } from "https://deno.land/std@0.191.0/http/server.ts";
 
 import { Database } from "bun:sqlite";
 import Minimist from 'minimist';
@@ -16,7 +14,7 @@ const {
 } = Minimist(Bun.argv.slice(2), {
   default: {
     help: false,
-    routines: `~/.config/nowify/routines.csv`,
+    routines: `./routines.csv`,
     db: `nowify.db`, // TODO: Where is the best place to store this by default?
   },
   boolean: ["help"],
@@ -25,7 +23,6 @@ const {
 });
 
 const command = args.join(` `).trim();
-console.log(command);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -44,57 +41,57 @@ db.query(`
   , action
   )
 `).run();
-//
-// // https://stackoverflow.com/a/8497474
-// const csvLine = (x: string) => {
-//   const re_valid =
-//     /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/;
-//   const re_value =
-//     /(?!\s*$)\s*(?:'([^'\\]*(?:\\[\S\s][^'\\]*)*)'|"([^"\\]*(?:\\[\S\s][^"\\]*)*)"|([^,'"\s\\]*(?:\s+[^,'"\s\\]+)*))\s*(?:,|$)/g;
-//   if (!re_valid.test(x)) return null;
-//   const a = [];
-//   x.replace(re_value, (_, m1, m2, m3) => {
-//     // Remove backslash from \' in single quoted values.
-//     if (m1 !== undefined) a.push(m1.replace(/\\'/g, "'"));
-//     // Remove backslash from \" in double quoted values.
-//     else if (m2 !== undefined) a.push(m2.replace(/\\"/g, '"'));
-//     else if (m3 !== undefined) a.push(m3);
-//     return ""; // Return empty string.
-//   });
-//   // Handle special case of empty last value.
-//   if (/,\s*$/.test(x)) a.push("");
-//   return a;
-// };
-//
-// const routines = [];
-// {
-//   const [head, ...body] = (
-//     await Deno.readTextFile(csv.replace(`~`, Deno.env.get("HOME") ?? `~`))
-//   ).split("\n");
-//   const keys = csvLine(head) ?? [];
-//   for (const k of [
-//     "days",
-//     "start",
-//     "end",
-//     "duration",
-//     "score",
-//     "event",
-//     "desc",
-//   ])
-//     if (!keys.includes(k))
-//       throw Error(`routines.csv must include header row with a '${k}' column.`);
-//   for await (const routine of body) {
-//     const values = csvLine(routine) ?? [];
-//     if (values.length)
-//       routines.push(Object.fromEntries(keys.map((k, i) => [k, values[i]])));
-//   }
-// }
-//
-// const routinesKeys = ["id", ...Object.keys(routines?.[0] ?? {})]; // TODO: kludge
-// const routinesVals = routines.map((o: Record<string, unknown>, id) =>
-//   routinesKeys.map(k => `'${{ id, ...o }[k]}'`)
-// );
-// const routinesVals_ = routinesVals.map(x => `(${x.join(",")})`).join(",");
+
+// https://stackoverflow.com/a/8497474
+const csvLine = (x: string) => {
+  const re_valid =
+    /^\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*(?:,\s*(?:'[^'\\]*(?:\\[\S\s][^'\\]*)*'|"[^"\\]*(?:\\[\S\s][^"\\]*)*"|[^,'"\s\\]*(?:\s+[^,'"\s\\]+)*)\s*)*$/;
+  const re_value =
+    /(?!\s*$)\s*(?:'([^'\\]*(?:\\[\S\s][^'\\]*)*)'|"([^"\\]*(?:\\[\S\s][^"\\]*)*)"|([^,'"\s\\]*(?:\s+[^,'"\s\\]+)*))\s*(?:,|$)/g;
+  if (!re_valid.test(x)) return null;
+  const a = [];
+  x.replace(re_value, (_, m1, m2, m3) => {
+    // Remove backslash from \' in single-quoted values.
+    if (m1 !== undefined) a.push(m1.replace(/\\'/g, "'"));
+    // Remove backslash from \" in double-quoted values.
+    else if (m2 !== undefined) a.push(m2.replace(/\\"/g, '"'));
+    else if (m3 !== undefined) a.push(m3);
+    return ""; // Return empty string.
+  });
+  // Handle special case of empty last value.
+  if (/,\s*$/.test(x)) a.push("");
+  return a;
+};
+
+const routines = [];
+{
+
+  const buffer = await Bun.file(csv).text();
+  const [head, ...body] = buffer.split("\n");
+  const keys = csvLine(head) ?? [];
+  for (const k of [
+    "days",
+    "start",
+    "end",
+    "duration",
+    "score",
+    "event",
+    "desc",
+  ])
+    if (!keys.includes(k))
+      throw Error(`routines.csv must include header row with a '${k}' column.`);
+  for await (const routine of body) {
+    const values = csvLine(routine) ?? [];
+    if (values.length)
+      routines.push(Object.fromEntries(keys.map((k, i) => [k, values[i]])));
+  }
+}
+
+const routinesKeys = ["id", ...Object.keys(routines?.[0] ?? {})]; // TODO: kludge
+const routinesVals = routines.map((o: Record<string, unknown>, id) =>
+  routinesKeys.map(k => `'${{ id, ...o }[k]}'`)
+);
+const routinesVals_ = routinesVals.map(x => `(${x.join(",")})`).join(",");
 
 const start = (): { event: string; desc: string } | null => {
   // @ts-ignore
