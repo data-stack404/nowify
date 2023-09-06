@@ -95,33 +95,32 @@ db.query(`
 //   routinesKeys.map(k => `'${{ id, ...o }[k]}'`)
 // );
 // const routinesVals_ = routinesVals.map(x => `(${x.join(",")})`).join(",");
-//
-// const start = (): { event: string; desc: string } | null => {
-//   const [[event, desc, isStart] = []]: [string?, string?, boolean?][] =
-//     db.query(`
-//     with r (${routinesKeys.join(",")}) as (values ${routinesVals_})
-//     select r.event, r.desc, l.action is not null
-//     from r
-//     left join log l on l.event = r.event and l.action = 'start'
-//     where cast(strftime('%H', datetime(current_timestamp,'localtime')) as integer) between r.start and r.end
-//       and 0 < instr(days, case strftime('%w',datetime(current_timestamp,'localtime')) when '0' then 'U' when '1' then 'M' when '2' then 'T' when '3' then 'W' when '4' then 'R' when '5' then 'F' when '6' then 'A' end)
-//       and r.event not in (
-//         select event
-//         from log
-//         where created_at > datetime(current_timestamp, 'start of day', 'localtime')
-//           and (action = 'done' or action = 'skip' and created_at > datetime(current_timestamp,'-40 minutes'))
-//       )
-//     order by l.created_at asc nulls last, r.id asc
-//     limit 1
-//   `) ?? [];
-//   if (!event || !desc) return null;
-//   if (!isStart) {
-//     db.query(`insert into log (event, action) values (?, 'start')`, [
-//       event as string,
-//     ]);
-//   }
-//   return { event, desc };
-// };
+
+const start = (): { event: string; desc: string } | null => {
+  // @ts-ignore
+  const [[event, desc, isStart] = []]: [string?, string?, boolean?][] =
+    db.query(`
+    with r (${routinesKeys.join(",")}) as (values ${routinesVals_})
+    select r.event, r.desc, l.action is not null
+    from r
+    left join log l on l.event = r.event and l.action = 'start'
+    where cast(strftime('%H', datetime(current_timestamp,'localtime')) as integer) between r.start and r.end
+      and 0 < instr(days, case strftime('%w',datetime(current_timestamp,'localtime')) when '0' then 'U' when '1' then 'M' when '2' then 'T' when '3' then 'W' when '4' then 'R' when '5' then 'F' when '6' then 'A' end)
+      and r.event not in (
+        select event
+        from log
+        where created_at > datetime(current_timestamp, 'start of day', 'localtime')
+          and (action = 'done' or action = 'skip' and created_at > datetime(current_timestamp,'-40 minutes'))
+      )
+    order by l.created_at asc nulls last, r.id asc
+    limit 1
+  `).get() ?? [];
+  if (!event || !desc) return null;
+  if (!isStart) {
+    db.query(`insert into log (event, action) values (?, 'start')`).all(event as string);
+  }
+  return { event, desc };
+};
 
 const colors = {
   red: (s: string | null) => s && `\u001b[31m${s ?? ``}\u001b[39m`,
